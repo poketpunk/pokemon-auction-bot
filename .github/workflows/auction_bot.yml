@@ -1,0 +1,36 @@
+name: Pokemon Auction Bot
+
+on:
+  schedule:
+    - cron: '0 10 * * *' # Запуск раз в сутки в 10:00 UTC
+  workflow_dispatch:
+
+jobs:
+  run-auction-bot:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests beautifulsoup4
+
+      - name: Run bot script
+        env:
+          TG_TOKEN: ${{ secrets.TG_TOKEN }}
+          TG_CHAT: ${{ secrets.TG_CHAT }}
+        run: python bot.py
+
+      - name: Save state
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add last_auction.txt || exit 0
+          git commit -m "Update last auction record" || exit 0
+          git push
