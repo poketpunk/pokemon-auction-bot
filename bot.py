@@ -7,10 +7,10 @@ import requests
 TELEGRAM_BOT_TOKEN = os.getenv("TG_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TG_CHAT")
 
-# Поисковые запросы для сбора свежих новостей об аукционах и продажах
+# Поисковые запросы для сбора главных новостей об аукционах и продажах карт
 SEARCH_QUERIES = [
-    '"Pokemon TCG" auction sale',
-    '"Pokemon card" sold price record',
+    '"Pokemon TCG" auction sale record',
+    '"Pokemon card" sold price goldin ebay',
 ]
 
 
@@ -54,8 +54,8 @@ def fetch_news_items():
         soup = BeautifulSoup(response.text, "xml")
         items = soup.find_all("item")
 
-        # Берем по 3 свежие новости с каждого запроса
-        for item in items[:3]:
+        # Собираем свежие статьи
+        for item in items[:4]:
           title = item.title.text if item.title else ""
           link = item.link.text if item.link else ""
           if title and link:
@@ -63,7 +63,7 @@ def fetch_news_items():
     except Exception as e:
       print(f"Ошибка поиска для запроса '{query}': {e}")
 
-  # Убираем возможные дубликаты по ссылкам
+  # Убираем дубликаты
   unique_news = []
   seen_links = set()
   for news in collected_news:
@@ -80,30 +80,28 @@ def run():
     print("❌ Ошибка: Не заданы секреты TG_TOKEN или TG_CHAT!")
     return
 
-  # Читаем историю уже отправленных ссылок, чтобы не повторяться
+  # Читаем историю отправленных ссылок, чтобы не дублировать новости
   sent_links = set()
   if os.path.exists("sent_links.txt"):
     with open("sent_links.txt", "r", encoding="utf-8") as f:
       sent_links = set(line.strip() for line in f if line.strip())
 
-  # Собираем свежие новости из интернета
   all_news = fetch_news_items()
   if not all_news:
     print("ℹ️ Свежих новостей в Google News не найдено.")
     return
 
-  # Фильтруем только те, которые мы ЕЩЕ НЕ публиковали
+  # Оставляем только то, чего мы еще не публиковали
   new_items = [n for n in all_news if n["link"] not in sent_links]
 
   if not new_items:
     print("ℹ️ Новых уникальных статей для дайджеста нет.")
     return
 
-  # Берем пачку из свежих новостей (например, до 4 штук за раз для одного красивого дайджеста)
+  # Берем до 4 свежих новостей для формирования красивого единого поста
   digest_batch = new_items[:4]
   print(f"Найдено новых материалов для дайджеста: {len(digest_batch)}")
 
-  # Формируем текст сводки
   digest_lines = [
       "📊 **ГЛАВНЫЕ НОВОСТИ И АУКЦИОННЫЕ СВОДКИ POKÉMON TCG:**\n"
   ]
@@ -114,33 +112,31 @@ def run():
     orig_title = item["title"]
     link = item["link"]
 
-    print( &quot;Перевожу заголовок:&quot;, orig_title )
+    print(f"Перевожу заголовок: {orig_title}")
     ru_title = translate_text(orig_title)
 
-    digest_lines.append(f"{idx}. **{ru_title}**\n   🔗 [Читать источник]({link})\n")
+    digest_lines.append(f"• **{ru_title}**\n  🔗 [Читать источник]({link})\n")
     new_links_to_save.append(link)
 
-  # Добавляем призыв к обсуждению
   footer_variants = [
       "\n💬 *Как вам такие ценники? Делитесь мнением в комментариях!*",
       "\n🔥 *Какой лот удивил вас больше всего? Пишите в чате!*",
-      "\n⚡ *Рынок карт продолжает ставить рекорды. Следим дальше!*",
+      "\n⚡ *Рынок коллекционных карт продолжает ставить рекорды. Следим дальше!*",
   ]
   digest_lines.append(random.choice(footer_variants))
 
   post_text = "\n".join(digest_lines)
 
-  # Ограничение Telegram на длину сообщения (на всякий случай)
   if len(post_text) > 4000:
     post_text = post_text[:4000] + "\n...(дайджест сокращен)"
 
-  # Отправляем единым постом в Telegram
+  # Отправляем единый аналитический пост в Telegram
   url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
   payload = {
       "chat_id": TELEGRAM_CHAT_ID,
       "text": post_text,
       "parse_mode": "Markdown",
-      "disable_web_page_preview": True, # Отключаем превью, чтобы длинный список не загромождал чат картинками
+      "disable_web_page_preview": True,
   }
 
   response = requests.post(url, json=payload)
@@ -148,7 +144,6 @@ def run():
 
   if response.status_code == 200:
     print("✅ УСПЕШНО! Дайджест новостей опубликован одним постом.")
-    # Сохраняем все опубликованные ссылки в файл истории
     with open("sent_links.txt", "a", encoding="utf-8") as f:
       for l in new_links_to_save:
         f.write(l + "\n")
