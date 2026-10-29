@@ -2,8 +2,12 @@ name: Pokemon Auction Digest Bot
 
 on:
   schedule:
-    - cron: '0 10 * * *' # Запуск раз в день в 10:00 UTC (можешь изменить под себя)
+    - cron: '0 10 * * *' # Запуск раз в сутки в 10:00 UTC
   workflow_dispatch:
+
+# Обязательно даем боту права на запись (push) в репозиторий
+permissions:
+  contents: write
 
 jobs:
   run-digest-bot:
