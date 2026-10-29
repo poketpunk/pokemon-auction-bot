@@ -1,12 +1,12 @@
-name: Pokemon Auction Bot
+name: Pokemon Auction Digest Bot
 
 on:
   schedule:
-    - cron: '0 10 * * *' # Запуск раз в сутки в 10:00 UTC
+    - cron: '0 10 * * *' # Запуск раз в день в 10:00 UTC (можешь изменить под себя)
   workflow_dispatch:
 
 jobs:
-  run-auction-bot:
+  run-digest-bot:
     runs-on: ubuntu-latest
 
     steps:
@@ -19,7 +19,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install requests beautifulsoup4
+        run: pip install -r requirements.txt
 
       - name: Run bot script
         env:
@@ -27,10 +27,10 @@ jobs:
           TG_CHAT: ${{ secrets.TG_CHAT }}
         run: python bot.py
 
-      - name: Save state
+      - name: Save history state
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git add last_auction.txt || exit 0
-          git commit -m "Update last auction record" || exit 0
+          git add sent_links.txt || exit 0
+          git commit -m "Update sent links history" || exit 0
           git push
